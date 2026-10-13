@@ -27,6 +27,8 @@ struct MenuBarUsage: Equatable {
     let level: UsageLevel
     /// Numbers are from an older check (login expired, offline): drawn dimmer.
     let isStale: Bool
+    /// Shown instead of rings or a percent, for accounts without a quota: "1.2M", "$1.92".
+    var text: String?
 
     var highest: Double { windows.max() ?? 0 }
 }
@@ -42,7 +44,38 @@ enum MenuBarRenderer {
     private static let ringWidth: CGFloat = 1.6
     private static let groupGap: CGFloat = 8
 
-    static func image(style: MenuBarStyle, items: [MenuBarUsage]) -> NSImage {
+    static func image(style: MenuBarStyle, items: [MenuBarUsage], alert: Bool = false) -> NSImage {
+        let image = image(style: style, items: items)
+        return alert ? withAlertDot(image) : image
+    }
+
+    /// A red dot in the top-right corner, like an app badge. A template image (the mark)
+    /// would be recolored by the menu bar, so it is drawn in labelColor here instead.
+    private static func withAlertDot(_ base: NSImage) -> NSImage {
+        let dot: CGFloat = 6
+        let size = NSSize(width: base.size.width + dot / 2, height: base.size.height)
+        let image = NSImage(size: size, flipped: false) { rect in
+            let baseRect = NSRect(origin: .zero, size: base.size)
+            if base.isTemplate {
+                let tinted = NSImage(size: base.size, flipped: false) { inner in
+                    base.draw(in: inner)
+                    NSColor.labelColor.set()
+                    inner.fill(using: .sourceAtop)
+                    return true
+                }
+                tinted.draw(in: baseRect)
+            } else {
+                base.draw(in: baseRect)
+            }
+            NSColor.systemRed.setFill()
+            NSBezierPath(ovalIn: NSRect(x: rect.maxX - dot, y: rect.maxY - dot - 1, width: dot, height: dot)).fill()
+            return true
+        }
+        image.isTemplate = false
+        return image
+    }
+
+    private static func image(style: MenuBarStyle, items: [MenuBarUsage]) -> NSImage {
         guard style != .icon, !items.isEmpty else { return BrandMark.templateImage(pointSize: height) }
 
         let groups = items.map { item in (item, groupWidth(item, style: style)) }
@@ -65,6 +98,9 @@ enum MenuBarRenderer {
 
     private static func groupWidth(_ item: MenuBarUsage, style: MenuBarStyle) -> CGFloat {
         let label = (item.label as NSString).size(withAttributes: [.font: labelFont]).width
+        if let text = item.text {
+            return label + 1 + (text as NSString).size(withAttributes: [.font: percentFont]).width
+        }
         switch style {
         case .rings: return label + 3 + ringSize
         case .percent: return label + 1 + (percentText(item) as NSString).size(withAttributes: [.font: percentFont]).width
@@ -81,7 +117,18 @@ enum MenuBarRenderer {
         ])
         let labelSize = label.size()
         label.draw(at: NSPoint(x: x, y: (rect.height - labelSize.height) / 2))
-        let contentX = x + labelSize.width + (style == .rings ? 3 : 1)
+        let contentX = x + labelSize.width + (style == .rings && item.text == nil ? 3 : 1)
+
+        if let text = item.text {
+            let color: NSColor = switch item.level {
+            case .limit: .systemRed
+            case .warning: .systemOrange
+            case .normal: ink
+            }
+            let string = NSAttributedString(string: text, attributes: [.font: percentFont, .foregroundColor: color.withAlphaComponent(alpha)])
+            string.draw(at: NSPoint(x: contentX, y: (rect.height - string.size().height) / 2))
+            return
+        }
 
         switch style {
         case .rings:

@@ -35,6 +35,7 @@ targets:
         CFBundleVersion: "1"
         NSHumanReadableCopyright: "© 2026 npmh0310"
         LSUIElement: true
+        NSAppleEventsUsageDescription: "DevDock opens your projects in a new iTerm tab."
     settings:
       base:
         CODE_SIGN_STYLE: Manual

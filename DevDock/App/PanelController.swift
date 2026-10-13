@@ -19,6 +19,11 @@ final class PanelController {
         // SwiftUI's ideal size drives the window, so the window, the glass and
         // the content always resize together.
         hosting.sizingOptions = [.intrinsicContentSize]
+        // Without this Auto Layout grows the window itself when the content gets taller,
+        // keeping the bottom edge fixed, so the top (the tabs) jumps until fitToContent
+        // moves it back. Let only fitToContent resize, from the top.
+        hosting.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        hosting.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         hosting.onSizeChange = { [weak self] in self?.fitToContent() }
         // The panel sits right under the menu bar; don't let SwiftUI inset content for it.
         hosting.safeAreaRegions = []

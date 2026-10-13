@@ -27,6 +27,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let anchor = statusItem?.anchorRect else { return }
             panel?.toggle(anchor: anchor)
         }
+        KeyboardShortcuts.onKeyUp(for: .openProjects) { [weak self, weak panel, weak statusItem] in
+            guard let self, let panel, let anchor = statusItem?.anchorRect else { return }
+            // Pressed again while Projects is showing: close, like the panel shortcut.
+            if panel.isVisible, state.module == .projects { return panel.close() }
+            state.module = .projects
+            if !panel.isVisible { panel.show(anchor: anchor) }
+            // After show(), which clears the first responder.
+            state.projectsFocusRequest += 1
+        }
         self.panel = panel
         self.statusItem = statusItem
 
@@ -57,7 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } onChange: { [weak self] in
             Task { @MainActor in self?.observeMenuBar() }
         }
-        statusItem?.update(image: MenuBarRenderer.image(style: content.style, items: content.items),
+        statusItem?.update(image: MenuBarRenderer.image(style: content.style, items: content.items, alert: content.alert),
                            tooltip: content.tooltip)
     }
 }

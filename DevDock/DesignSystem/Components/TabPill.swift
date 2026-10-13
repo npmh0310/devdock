@@ -15,6 +15,8 @@ struct TabPill: View {
     var style: Style = .regular
     var progress: Double?
     var progressTint: Color = DS.Palette.success
+    /// Fill the width it is given, e.g. a grid cell, instead of hugging the label.
+    var fillsWidth = false
     let action: () -> Void
 
     @State private var isHovered = false
@@ -23,30 +25,34 @@ struct TabPill: View {
         Button(action: action) {
             VStack(spacing: DS.Space.xs) {
                 label
-                    .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+                    // Only colors animate: animating layout made the label slide when the panel resized.
+                    .animation(.snappy(duration: 0.18)) {
+                        $0.foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+                    }
                     .frame(width: style == .regular ? DS.Size.tabWidth : nil)
-                    .padding(.horizontal, style == .compact ? DS.Space.s + 2 : 0)
+                    .frame(maxWidth: fillsWidth ? .infinity : nil)
+                    .padding(.horizontal, style == .compact ? (fillsWidth ? DS.Space.xs : DS.Space.s + 2) : 0)
                     .padding(.vertical, style == .regular ? 5 : 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
-                            .fill(background)
-                            .shadow(color: isSelected ? DS.Palette.accent.opacity(0.35) : .clear, radius: 4, y: 1)
-                    )
+                    .animation(.easeOut(duration: 0.12)) { content in
+                        content.background {
+                            RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
+                                .fill(background)
+                                .shadow(color: isSelected ? DS.Palette.accent.opacity(0.35) : .clear, radius: 4, y: 1)
+                        }
+                    }
 
                 if let progress {
                     UsageBar(value: progress, tint: progressTint, height: DS.Size.miniBar)
                         .padding(.horizontal, DS.Space.xs)
                 }
             }
-            .fixedSize(horizontal: style == .compact, vertical: false)
+            .fixedSize(horizontal: style == .compact && !fillsWidth, vertical: false)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .clickableCursor()
         .onHover { isHovered = $0 }
         .help(title)
-        .animation(.snappy(duration: 0.18), value: isSelected)
-        .animation(.easeOut(duration: 0.12), value: isHovered)
     }
 
     @ViewBuilder private var label: some View {
@@ -61,7 +67,7 @@ struct TabPill: View {
         case .compact:
             HStack(spacing: DS.Space.xs) {
                 Image(systemName: symbol).font(.system(size: 11, weight: .semibold))
-                Text(title).font(DS.Typography.tab)
+                Text(title).font(DS.Typography.tab).lineLimit(1).minimumScaleFactor(0.85)
             }
         }
     }

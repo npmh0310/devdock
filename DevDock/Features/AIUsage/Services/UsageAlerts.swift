@@ -32,10 +32,11 @@ nonisolated struct UsageAlert: Sendable, Equatable {
 /// Decides what to show in the menu bar and when to notify.
 nonisolated enum UsageAlerts {
     /// Every window at or above the threshold, most urgent first.
-    static func current(snapshots: [UsageSnapshot], warnAt: Double) -> [UsageAlert] {
+    static func current(snapshots: [UsageSnapshot], warnAt: (AIAccount) -> Double) -> [UsageAlert] {
         snapshots
-            .flatMap { snapshot in
-                snapshot.windows.map { window in
+            .flatMap { snapshot -> [UsageAlert] in
+                let warnAt = warnAt(snapshot.account)
+                return snapshot.windows.map { window in
                     UsageAlert(accountID: snapshot.account.id, accountName: snapshot.account.name,
                                accountTitle: snapshot.account.title, window: window.title, used: window.currentUsed, resetsAt: window.resetsAt,
                                level: UsageLevel(used: window.currentUsed, warnAt: warnAt))

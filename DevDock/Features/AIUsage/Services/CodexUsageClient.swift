@@ -61,54 +61,14 @@ nonisolated enum CodexUsageClient {
 
     // MARK: - Session logs
 
-    /// Latest `token_count` event with Codex limits from the newest session files.
-    static func fromSessionLogs() -> UsageSnapshot? {
-        for file in recentSessionFiles(limit: 5) {
-            guard let text = try? String(contentsOfFile: file, encoding: .utf8) else { continue }
-            for line in text.split(separator: "\n").reversed() where line.contains("\"rate_limits\"") {
-                guard let entry = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
-                      let limits = (entry["payload"] as? [String: Any])?["rate_limits"] as? [String: Any],
-                      limits["primary"] is [String: Any]
-                else { continue }
-
-                let windows = [("primary", "Session"), ("secondary", "Weekly")].compactMap { key, title -> UsageWindow? in
-                    guard let window = limits[key] as? [String: Any], let percent = window["used_percent"] as? Double else { return nil }
-                    let resetsAt = (window["resets_at"] as? Double).map(Date.init(timeIntervalSince1970:))
-                    // The log can be older than the window: once it reset, usage starts from zero.
-                    let used = (resetsAt.map { $0 < .now } ?? false) ? 0 : percent / 100
-                    return UsageWindow(title: title, used: used, resetsAt: resetsAt)
-                }
-                return UsageSnapshot(account: account, plan: (limits["plan_type"] as? String)?.capitalized,
-                                     windows: windows,
-                                     updatedAt: (entry["timestamp"] as? String).flatMap(ISODate.parse),
-                                     source: .localLogs)
+    /// A quota reading from the session logs (read by `CodexQuotaLog`), as a snapshot.
+    /// The logs have no plan type, so the last known one is passed in.
+    static func snapshot(from reading: CodexQuotaReading, plan: String?, now: Date = .now) -> UsageSnapshot {
+        let windows = [("Session", reading.session, reading.sessionResetsAt), ("Weekly", reading.weekly, reading.weeklyResetsAt)]
+            .map { title, used, resetsAt in
+                // The log can be older than the window: once it reset, usage starts from zero.
+                UsageWindow(title: title, used: (resetsAt.map { $0 < now } ?? false) ? 0 : used, resetsAt: resetsAt)
             }
-        }
-        return nil
-    }
-
-    /// Session files live in `sessions/YYYY/MM/DD/`; walk the newest days first.
-    private static func recentSessionFiles(limit: Int) -> [String] {
-        let fm = FileManager.default
-        let root = "\(home)/sessions"
-        func sortedDesc(_ path: String) -> [String] {
-            ((try? fm.contentsOfDirectory(atPath: path)) ?? []).sorted(by: >).map { "\(path)/\($0)" }
-        }
-        var files: [String] = []
-        for year in sortedDesc(root) {
-            for month in sortedDesc(year) {
-                for day in sortedDesc(month) {
-                    let jsonl = sortedDesc(day).filter { $0.hasSuffix(".jsonl") }
-                    let byDate = jsonl.sorted {
-                        let a = (try? fm.attributesOfItem(atPath: $0)[.modificationDate] as? Date) ?? .distantPast
-                        let b = (try? fm.attributesOfItem(atPath: $1)[.modificationDate] as? Date) ?? .distantPast
-                        return a > b
-                    }
-                    files += byDate
-                    if files.count >= limit { return Array(files.prefix(limit)) }
-                }
-            }
-        }
-        return files
+        return UsageSnapshot(account: account, plan: plan, windows: windows, updatedAt: reading.date, source: .localLogs)
     }
 }

@@ -26,6 +26,9 @@ struct RootView: View {
         }
         .frame(width: DS.Size.panelWidth, alignment: .top)
         .fixedSize(horizontal: false, vertical: true)
+        // The window catches up with a new height one runloop later. Until then the hosting
+        // view would center the content in the old height and everything jumps; pin it to the top.
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private var header: some View {
@@ -49,10 +52,15 @@ struct RootView: View {
             PortsView(store: state.ports, lastRefreshed: state.scheduler.lastRefreshed)
         case .aiUsage:
             AIUsageView(store: state.aiUsage)
+        case .claudeMem:
+            ClaudeMemView(store: state.claudeMem)
+        case .projects:
+            ProjectsView(store: state.projects, focusRequest: state.projectsFocusRequest, onOpen: onClose)
         case .settings:
             SettingsView(menuBarAccounts: state.aiUsage.accounts
-                .filter { !$0.isGateway }
-                .map { MenuBarAccountOption(id: $0.id, title: $0.title) })
+                .map { MenuBarAccountOption(id: $0.id, title: $0.title, name: $0.name) },
+                         defaultMenuBarAccounts: MenuBarSelection.ids(accounts: state.aiUsage.accounts),
+                         claudeMemOnDeepSeek: state.aiUsage.accounts.contains(DeepSeekUsageClient.account))
         }
     }
 

@@ -22,7 +22,7 @@ enum DS {
         static let panelWidth: CGFloat = 320
         static let bar: CGFloat = 6
         static let miniBar: CGFloat = 3
-        static let tabWidth: CGFloat = 64
+        static let tabWidth: CGFloat = 58
         static let icon: CGFloat = 16
         /// Label column in detail views.
         static let infoLabel: CGFloat = 64
@@ -51,6 +51,7 @@ enum DS {
     enum Brand {
         static let claude = Color(red: 0.78, green: 0.47, blue: 0.34)
         static let codex = Color(red: 0.29, green: 0.66, blue: 0.58)
+        static let deepseek = Color(red: 0.30, green: 0.42, blue: 1.0)
     }
 
     enum Typography {

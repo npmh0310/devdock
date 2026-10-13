@@ -2,6 +2,8 @@ import Foundation
 
 /// Token counts from Claude Code's session logs, for gateway accounts that have no quota API.
 nonisolated enum LocalLogUsage {
+    // shortcut: rereads every log of the last 7 days each refresh; fine at a few MB,
+    // make it incremental like CodexQuotaLog if a gateway account reaches ~100 MB/week.
     static func snapshot(for info: ClaudeAccountInfo, now: Date = .now) -> UsageSnapshot {
         let calendar = Calendar.current
         let startOfToday = calendar.startOfDay(for: now)

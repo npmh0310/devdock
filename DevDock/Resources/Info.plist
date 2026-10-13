@@ -22,6 +22,8 @@
 	<string>1</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>DevDock opens your projects in a new iTerm tab.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 npmh0310</string>
 </dict>

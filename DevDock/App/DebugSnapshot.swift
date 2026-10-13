@@ -18,6 +18,8 @@ enum DebugSnapshot {
         Task {
             await state.ports.refresh()
             await state.aiUsage.refresh()
+            await state.claudeMem.refresh()
+            await state.projects.refresh()
 
             for module in AppModule.allCases {
                 state.module = module

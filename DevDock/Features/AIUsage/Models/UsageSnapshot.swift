@@ -3,6 +3,7 @@ import SwiftUI
 nonisolated enum AIProvider: String, CaseIterable, Identifiable, Codable, Sendable {
     case claude
     case codex
+    case deepseek
 
     var id: Self { self }
 
@@ -10,6 +11,7 @@ nonisolated enum AIProvider: String, CaseIterable, Identifiable, Codable, Sendab
         switch self {
         case .claude: "Claude"
         case .codex: "Codex"
+        case .deepseek: "DeepSeek"
         }
     }
 
@@ -17,6 +19,7 @@ nonisolated enum AIProvider: String, CaseIterable, Identifiable, Codable, Sendab
         switch self {
         case .claude: "asterisk"
         case .codex: "chevron.left.forwardslash.chevron.right"
+        case .deepseek: "fish"
         }
     }
 
@@ -24,6 +27,7 @@ nonisolated enum AIProvider: String, CaseIterable, Identifiable, Codable, Sendab
         switch self {
         case .claude: DS.Brand.claude
         case .codex: DS.Brand.codex
+        case .deepseek: DS.Brand.deepseek
         }
     }
 }
@@ -31,11 +35,13 @@ nonisolated enum AIProvider: String, CaseIterable, Identifiable, Codable, Sendab
 /// One login of a provider. Claude Code accounts are separate `CLAUDE_CONFIG_DIR`s,
 /// e.g. `~/.claude-personal`, `~/.claude-side`, `~/.claude-work`.
 nonisolated struct AIAccount: Identifiable, Hashable, Codable, Sendable {
-    enum Auth: Codable, Sendable {
+    enum Auth: Codable, Sendable, Equatable {
         /// Claude/ChatGPT subscription: has session and weekly quota.
         case subscription
         /// API key or company gateway: no quota, only token counts from local logs.
         case gateway(host: String)
+        /// Prepaid API key: no quota, only a balance that runs down.
+        case prepaid
     }
 
     /// Config directory, or the provider name when it has a single account.
@@ -52,6 +58,7 @@ nonisolated struct AIAccount: Identifiable, Hashable, Codable, Sendable {
         switch provider {
         case .codex: return "codex"
         case .claude: return "claude"
+        case .deepseek: return "open ~/.claude-mem/settings.json"
         }
     }
 
@@ -102,6 +109,21 @@ nonisolated struct UsageWindow: Identifiable, Codable, Sendable {
     var currentUsed: Double { hasReset ? 0 : used }
 }
 
+/// Money left on a prepaid API key.
+nonisolated struct Balance: Codable, Sendable, Equatable {
+    let currency: String
+    let total: Double
+    /// Free credit from the provider; spent before the topped-up part.
+    let granted: Double
+    let toppedUp: Double
+    /// False when the provider refuses requests, e.g. the balance ran out.
+    let isAvailable: Bool
+
+    func format(_ amount: Double) -> String {
+        amount.formatted(.currency(code: currency).presentation(.narrow).precision(.fractionLength(2)))
+    }
+}
+
 /// Token count over a period, for accounts without a quota.
 nonisolated struct TokenTotal: Identifiable, Codable, Sendable {
     let title: String
@@ -115,6 +137,7 @@ nonisolated struct UsageSnapshot: Codable, Sendable {
     var plan: String?
     var windows: [UsageWindow] = []
     var tokenTotals: [TokenTotal] = []
+    var balance: Balance?
     /// Extra line under the windows, e.g. "Claude Code 81% · Cowork 16% of this week".
     var breakdown: String?
     var updatedAt: Date?
